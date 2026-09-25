@@ -11,15 +11,8 @@ body {
 }
 
 body {
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #f4f6f8;
   color: #17202a;
 }
@@ -48,7 +41,7 @@ textarea {
 .header h1 {
   margin: 0;
   font-size: 32px;
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: -0.5px;
 }
 
@@ -63,8 +56,7 @@ textarea {
   border: 1px solid #e4e7eb;
   border-radius: 18px;
   padding: 28px;
-  box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
 }
 
 .grid {
@@ -82,11 +74,9 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-
   margin-bottom: 8px;
-
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   color: #202733;
 }
 
@@ -99,20 +89,13 @@ textarea {
 .field input,
 .field textarea {
   width: 100%;
-
   border: 1px solid #d7dce2;
   border-radius: 10px;
-
   background: #ffffff;
-
   padding: 12px 13px;
-
   color: #17202a;
-
   outline: none;
-
-  transition:
-    border-color 0.15s ease,
+  transition: border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
@@ -129,15 +112,12 @@ textarea {
 .field input:focus,
 .field textarea:focus {
   border-color: #111827;
-
-  box-shadow:
-    0 0 0 3px rgba(17, 24, 39, 0.08);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
 }
 
 .field small {
   display: block;
   margin-top: 7px;
-
   color: #7a838e;
   font-size: 12px;
   line-height: 1.4;
@@ -147,7 +127,6 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-
   margin-top: 8px;
 }
 
@@ -155,15 +134,10 @@ textarea {
 .secondaryButton {
   border: 0;
   border-radius: 10px;
-
   padding: 12px 20px;
-
   cursor: pointer;
-
-  font-weight: 650;
-
-  transition:
-    transform 0.1s ease,
+  font-weight: 600;
+  transition: transform 0.1s ease,
     opacity 0.15s ease;
 }
 
@@ -192,14 +166,10 @@ textarea {
 .status {
   border-radius: 10px;
   padding: 12px 14px;
-
   margin: 5px 0 18px;
-
   font-size: 14px;
   line-height: 1.4;
 }
-
-/* Success message */
 
 .status.success {
   background: #ecfdf3;
@@ -207,15 +177,11 @@ textarea {
   border: 1px solid #b7ebce;
 }
 
-/* Error message */
-
 .status.error {
   background: #fff1f2;
   color: #b42318;
   border: 1px solid #fecdd3;
 }
-
-/* Warning message */
 
 .status.warning {
   background: #fff8e6;
@@ -228,9 +194,7 @@ textarea {
   justify-content: center;
   align-items: center;
   gap: 8px;
-
   margin-top: 20px;
-
   color: #8a93a0;
   font-size: 12px;
 }
