@@ -1,63 +1,29 @@
 import nodemailer from "nodemailer";
 
-function getSMTP(email) {
-  const domain = email.toLowerCase().split("@")[1];
-
-  if (domain === "gmail.com" || domain === "googlemail.com") {
-    return {
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      provider: "Gmail"
-    };
-  }
-
-  if (
-    domain === "yahoo.com" ||
-    domain === "yahoo.co.in" ||
-    domain === "yahoo.co.uk"
-  ) {
-    return {
-      host: "smtp.mail.yahoo.com",
-      port: 465,
-      secure: true,
-      provider: "Yahoo"
-    };
-  }
-
-  if (
-    domain === "outlook.com" ||
-    domain === "hotmail.com" ||
-    domain === "live.com"
-  ) {
-    return {
-      host: "smtp-mail.outlook.com",
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      provider: "Microsoft"
-    };
-  }
-
-  return null;
-}
-
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function cleanHeader(value) {
+  return String(value || "")
+    .replace(/[\r\n]+/g, " ")
+    .trim();
+}
 
 export async function POST(request) {
   let transporter;
 
   try {
+    const body = await request.json();
+
     const {
       senderName,
       senderEmail,
       appPassword,
       recipients,
       subject,
-      message,
-      replyTo
-    } = await request.json();
+      message
+    } = body;
 
+    // Required fields
     if (
       !senderName?.trim() ||
       !senderEmail?.trim() ||
@@ -67,57 +33,82 @@ export async function POST(request) {
       !message?.trim()
     ) {
       return Response.json(
-        { error: "Please fill all required fields." },
+        {
+          error: "Please fill all required fields."
+        },
         { status: 400 }
       );
     }
 
     const email = senderEmail.trim().toLowerCase();
 
-    if (!emailRegex.test(email)) {
-      return Response.json(
-        { error: "Invalid sender email address." },
-        { status: 400 }
-      );
-    }
-
-    const smtp = getSMTP(email);
-
-    if (!smtp) {
+    // Gmail only
+    if (
+      !email.endsWith("@gmail.com") &&
+      !email.endsWith("@googlemail.com")
+    ) {
       return Response.json(
         {
-          error:
-            "Currently supported providers are Gmail, Yahoo and Outlook."
+          error: "Please use a Gmail address."
         },
         { status: 400 }
       );
     }
 
+    if (!emailRegex.test(email)) {
+      return Response.json(
+        {
+          error: "Invalid Gmail address."
+        },
+        { status: 400 }
+      );
+    }
+
+    // Clean headers
+    const cleanSenderName = cleanHeader(senderName);
+    const cleanSubject = cleanHeader(subject);
+
+    if (!cleanSenderName || !cleanSubject) {
+      return Response.json(
+        {
+          error: "Invalid sender name or subject."
+        },
+        { status: 400 }
+      );
+    }
+
+    // Recipient list
     const recipientList = [
       ...new Set(
         recipients
           .split(/\r?\n/)
-          .map((item) => item.trim().toLowerCase())
+          .map((email) => email.trim().toLowerCase())
           .filter(Boolean)
       )
     ];
 
     if (recipientList.length === 0) {
       return Response.json(
-        { error: "Enter at least one recipient." },
+        {
+          error: "Enter at least one recipient."
+        },
         { status: 400 }
       );
     }
 
     if (recipientList.length > 50) {
       return Response.json(
-        { error: "Maximum 50 recipients per request." },
+        {
+          error: "Maximum 50 recipients per request."
+        },
         { status: 400 }
       );
     }
 
     const invalidRecipient = recipientList.find(
-      (item) => !emailRegex.test(item)
+      (recipient) =>
+        !emailRegex.test(recipient) ||
+        /[\r\n]/.test(recipient)
     );
 
     if (invalidRecipient) {
@@ -129,37 +120,32 @@ export async function POST(request) {
       );
     }
 
-    const cleanReplyTo = replyTo?.trim() || email;
-
-    if (!emailRegex.test(cleanReplyTo)) {
-      return Response.json(
-        { error: "Invalid Reply-To email address." },
-        { status: 400 }
-      );
-    }
-
+    // Gmail SMTP
     transporter = nodemailer.createTransport({
-      host: smtp.host,
-      port: smtp.port,
-      secure: smtp.secure,
-      requireTLS: smtp.requireTLS || false,
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+
       auth: {
         user: email,
         pass: appPassword.trim()
       },
+
       connectionTimeout: 15000,
       greetingTimeout: 15000,
       socketTimeout: 20000
     });
 
+    // Verify Gmail authentication
     try {
       await transporter.verify();
     } catch (error) {
-      console.error("SMTP VERIFY ERROR:", error);
+      console.error("GMAIL AUTH ERROR:", error);
 
       return Response.json(
         {
-          error: `Could not authenticate with ${smtp.provider}. Check your email and App Password.`
+          error:
+            "Gmail authentication failed. Check your Gmail address and App Password."
         },
         { status: 401 }
       );
@@ -169,41 +155,55 @@ export async function POST(request) {
     let failed = 0;
     const errors = [];
 
+    // Send individually
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
           from: {
-            name: senderName.trim(),
+            name: cleanSenderName,
             address: email
           },
+
           to: recipient,
-          replyTo: cleanReplyTo,
-          subject: subject.trim(),
-          text: message.trim()
+
+          subject: cleanSubject,
+
+          text: message.trim(),
+
+          headers: {
+            "X-Mailer": "Mail Sender"
+          }
         });
 
         sent++;
       } catch (error) {
         failed++;
 
-        console.error(`SEND ERROR ${recipient}:`, error);
+        console.error(
+          `SEND ERROR ${recipient}:`,
+          error
+        );
 
         errors.push({
           recipient,
-          error: error.message || "Sending failed"
+          error:
+            error?.message ||
+            "Email sending failed."
         });
       }
     }
 
     return Response.json({
       success: sent > 0,
-      provider: smtp.provider,
+      provider: "Gmail",
       sent,
       failed,
+
       message:
         sent > 0
           ? `Email sending completed. Sent: ${sent}, Failed: ${failed}.`
           : "No email was sent.",
+
       errors
     });
   } catch (error) {
@@ -211,7 +211,8 @@ export async function POST(request) {
 
     return Response.json(
       {
-        error: "Server error while sending email."
+        error:
+          "Server error while sending email."
       },
       { status: 500 }
     );
