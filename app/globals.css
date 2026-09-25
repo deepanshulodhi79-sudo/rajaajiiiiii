@@ -1,0 +1,252 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  background: #f4f6f8;
+  color: #17202a;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+.container {
+  width: 100%;
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 22px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+}
+
+.header p {
+  margin: 7px 0 0;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e4e7eb;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.05);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.field label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  margin-bottom: 8px;
+
+  font-size: 14px;
+  font-weight: 650;
+  color: #202733;
+}
+
+.labelHint {
+  color: #8a93a0;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+
+  border: 1px solid #d7dce2;
+  border-radius: 10px;
+
+  background: #ffffff;
+
+  padding: 12px 13px;
+
+  color: #17202a;
+
+  outline: none;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.field input {
+  height: 46px;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.55;
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: #111827;
+
+  box-shadow:
+    0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.field small {
+  display: block;
+  margin-top: 7px;
+
+  color: #7a838e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  margin-top: 8px;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 0;
+  border-radius: 10px;
+
+  padding: 12px 20px;
+
+  cursor: pointer;
+
+  font-weight: 650;
+
+  transition:
+    transform 0.1s ease,
+    opacity 0.15s ease;
+}
+
+.primaryButton {
+  background: #111827;
+  color: #ffffff;
+}
+
+.secondaryButton {
+  background: #eef0f2;
+  color: #202733;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.status {
+  border-radius: 10px;
+  padding: 12px 14px;
+
+  margin: 5px 0 18px;
+
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.status.success {
+  background: #ecfdf3;
+  color: #087443;
+  border: 1px solid #b7ebce;
+}
+
+.status.error {
+  background: #fff1f2;
+  color: #b42318;
+  border: 1px solid #fecdd3;
+}
+
+.footerNote {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+
+  margin-top: 20px;
+
+  color: #8a93a0;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 20px 12px;
+  }
+
+  .card {
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .header h1 {
+    font-size: 27px;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+}
