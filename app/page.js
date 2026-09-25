@@ -7,6 +7,7 @@ export default function Home() {
     senderName: "",
     senderEmail: "",
     appPassword: "",
+    replyTo: "",
     recipients: "",
     subject: "",
     message: ""
@@ -31,30 +32,35 @@ export default function Home() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    setLoading(true);
+
     setStatus({
       type: "",
       message: ""
     });
 
-    setLoading(true);
-
     try {
       const response = await fetch("/api/send", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json"
         },
+
         body: JSON.stringify(form)
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Something went wrong.");
+        throw new Error(
+          data.error || "Something went wrong."
+        );
       }
 
       setStatus({
-        type: "success",
+        type: data.failed > 0 ? "warning" : "success",
+
         message: data.message
       });
     } catch (error) {
@@ -72,6 +78,7 @@ export default function Home() {
       senderName: "",
       senderEmail: "",
       appPassword: "",
+      replyTo: "",
       recipients: "",
       subject: "",
       message: ""
@@ -86,17 +93,26 @@ export default function Home() {
   return (
     <main className="page">
       <div className="container">
-        <div className="header">
-          <div>
-            <h1>Mail Sender</h1>
-            <p>Send email through your SMTP account</p>
-          </div>
-        </div>
 
-        <form onSubmit={handleSubmit} className="card">
+        <header className="header">
+          <h1>Mail Sender</h1>
+
+          <p>
+            Send emails through your authenticated SMTP account.
+          </p>
+        </header>
+
+        <form
+          className="card"
+          onSubmit={handleSubmit}
+        >
+
           <div className="grid">
+
             <div className="field">
-              <label htmlFor="senderName">Sender Name</label>
+              <label htmlFor="senderName">
+                Sender Name
+              </label>
 
               <input
                 id="senderName"
@@ -110,28 +126,34 @@ export default function Home() {
             </div>
 
             <div className="field">
-              <label htmlFor="senderEmail">Sender Email / ID</label>
+              <label htmlFor="senderEmail">
+                Sender Email
+              </label>
 
               <input
                 id="senderEmail"
                 name="senderEmail"
                 type="email"
-                placeholder="your@email.com"
+                placeholder="your@gmail.com"
                 value={form.senderEmail}
                 onChange={handleChange}
                 required
               />
             </div>
+
           </div>
 
           <div className="field">
-            <label htmlFor="appPassword">App Password</label>
+
+            <label htmlFor="appPassword">
+              App Password
+            </label>
 
             <input
               id="appPassword"
               name="appPassword"
               type="password"
-              placeholder="Enter your app password"
+              placeholder="Enter App Password"
               value={form.appPassword}
               onChange={handleChange}
               autoComplete="off"
@@ -139,36 +161,64 @@ export default function Home() {
             />
 
             <small>
-              Your app password is sent only to the server for this request
-              and is not stored by this application.
+              Use an App Password, not your normal account password.
             </small>
+
           </div>
 
           <div className="field">
+
+            <label htmlFor="replyTo">
+              Reply-To
+              <span className="labelHint">
+                Optional
+              </span>
+            </label>
+
+            <input
+              id="replyTo"
+              name="replyTo"
+              type="email"
+              placeholder="reply@example.com"
+              value={form.replyTo}
+              onChange={handleChange}
+            />
+
+          </div>
+
+          <div className="field">
+
             <label htmlFor="recipients">
               Recipients
-              <span className="labelHint">One email per line</span>
+
+              <span className="labelHint">
+                One email per line
+              </span>
             </label>
 
             <textarea
               id="recipients"
               name="recipients"
               rows="7"
-              placeholder={`person1@example.com
-person2@example.com
-person3@example.com`}
+              placeholder={`client1@example.com
+client2@example.com
+client3@example.com`}
               value={form.recipients}
               onChange={handleChange}
               required
             />
 
             <small>
-              Enter only recipients you are authorized to contact.
+              Maximum 50 recipients per request.
             </small>
+
           </div>
 
           <div className="field">
-            <label htmlFor="subject">Subject</label>
+
+            <label htmlFor="subject">
+              Subject
+            </label>
 
             <input
               id="subject"
@@ -179,10 +229,14 @@ person3@example.com`}
               onChange={handleChange}
               required
             />
+
           </div>
 
           <div className="field">
-            <label htmlFor="message">Main Message</label>
+
+            <label htmlFor="message">
+              Main Message
+            </label>
 
             <textarea
               id="message"
@@ -193,15 +247,19 @@ person3@example.com`}
               onChange={handleChange}
               required
             />
+
           </div>
 
           {status.message && (
-            <div className={`status ${status.type}`}>
+            <div
+              className={`status ${status.type}`}
+            >
               {status.message}
             </div>
           )}
 
           <div className="actions">
+
             <button
               type="button"
               className="secondaryButton"
@@ -216,9 +274,13 @@ person3@example.com`}
               className="primaryButton"
               disabled={loading}
             >
-              {loading ? "Sending..." : "Send Email"}
+              {loading
+                ? "Sending..."
+                : "Send Email"}
             </button>
+
           </div>
+
         </form>
 
         <div className="footerNote">
@@ -226,6 +288,7 @@ person3@example.com`}
           <span>•</span>
           <span>Vercel Ready</span>
         </div>
+
       </div>
     </main>
   );
