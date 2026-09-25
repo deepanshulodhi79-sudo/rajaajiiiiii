@@ -42,7 +42,7 @@ function detectSMTP(email) {
   return null;
 }
 
-// ✅ FIXED: Correct escapeHtml function with valid Regex
+// Fixed HTML escaping logic with valid regular expressions
 function escapeHtml(text) {
   return text
     .replace(/&/g, "&")
