@@ -7,7 +7,6 @@ export default function Home() {
     senderName: "",
     senderEmail: "",
     appPassword: "",
-    replyTo: "",
     recipients: "",
     subject: "",
     message: ""
@@ -42,25 +41,20 @@ export default function Home() {
     try {
       const response = await fetch("/api/send", {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json"
         },
-
         body: JSON.stringify(form)
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.error || "Something went wrong."
-        );
+        throw new Error(data.error || "Something went wrong.");
       }
 
       setStatus({
         type: data.failed > 0 ? "warning" : "success",
-
         message: data.message
       });
     } catch (error) {
@@ -78,7 +72,6 @@ export default function Home() {
       senderName: "",
       senderEmail: "",
       appPassword: "",
-      replyTo: "",
       recipients: "",
       subject: "",
       message: ""
@@ -96,16 +89,12 @@ export default function Home() {
 
         <header className="header">
           <h1>Mail Sender</h1>
-
           <p>
             Send emails through your authenticated SMTP account.
           </p>
         </header>
 
-        <form
-          className="card"
-          onSubmit={handleSubmit}
-        >
+        <form className="card" onSubmit={handleSubmit}>
 
           <div className="grid">
 
@@ -134,7 +123,7 @@ export default function Home() {
                 id="senderEmail"
                 name="senderEmail"
                 type="email"
-                placeholder="your@gmail.com"
+                placeholder="your@yahoo.com"
                 value={form.senderEmail}
                 onChange={handleChange}
                 required
@@ -144,7 +133,6 @@ export default function Home() {
           </div>
 
           <div className="field">
-
             <label htmlFor="appPassword">
               App Password
             </label>
@@ -161,36 +149,13 @@ export default function Home() {
             />
 
             <small>
-              Use an App Password, not your normal account password.
+              Use your email provider's App Password.
             </small>
-
           </div>
 
           <div className="field">
-
-            <label htmlFor="replyTo">
-              Reply-To
-              <span className="labelHint">
-                Optional
-              </span>
-            </label>
-
-            <input
-              id="replyTo"
-              name="replyTo"
-              type="email"
-              placeholder="reply@example.com"
-              value={form.replyTo}
-              onChange={handleChange}
-            />
-
-          </div>
-
-          <div className="field">
-
             <label htmlFor="recipients">
               Recipients
-
               <span className="labelHint">
                 One email per line
               </span>
@@ -211,11 +176,9 @@ client3@example.com`}
             <small>
               Maximum 50 recipients per request.
             </small>
-
           </div>
 
           <div className="field">
-
             <label htmlFor="subject">
               Subject
             </label>
@@ -229,11 +192,9 @@ client3@example.com`}
               onChange={handleChange}
               required
             />
-
           </div>
 
           <div className="field">
-
             <label htmlFor="message">
               Main Message
             </label>
@@ -247,13 +208,10 @@ client3@example.com`}
               onChange={handleChange}
               required
             />
-
           </div>
 
           {status.message && (
-            <div
-              className={`status ${status.type}`}
-            >
+            <div className={`status ${status.type}`}>
               {status.message}
             </div>
           )}
@@ -274,9 +232,7 @@ client3@example.com`}
               className="primaryButton"
               disabled={loading}
             >
-              {loading
-                ? "Sending..."
-                : "Send Email"}
+              {loading ? "Sending..." : "Send Email"}
             </button>
 
           </div>
