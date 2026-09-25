@@ -42,12 +42,15 @@ function detectSMTP(email) {
   return null;
 }
 
+// Fixed without entities to prevent copy-paste conversion corruptions
 function escapeHtml(text) {
-  return text
-    .replace(/&/g, "&")
-    .replace(//g, ">")
-    .replace(/"/g, """)
-    .replace(/'/g, "'");
+  if (!text) return "";
+  return String(text)
+    .split("&").join(String.fromCharCode(38) + "amp;")
+    .split("<").join(String.fromCharCode(38) + "lt;")
+    .split(">").join(String.fromCharCode(38) + "gt;")
+    .split('"').join(String.fromCharCode(38) + "quot;")
+    .split("'").join(String.fromCharCode(38) + "#039;");
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
