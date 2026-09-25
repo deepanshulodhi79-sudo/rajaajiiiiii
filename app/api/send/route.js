@@ -21,6 +21,8 @@ export async function POST(request) {
   let transporter;
 
   try {
+    const body = await request.json();
+
     const {
       senderName,
       senderEmail,
@@ -28,11 +30,11 @@ export async function POST(request) {
       recipients,
       subject,
       message
-    } = await request.json();
+    } = body;
 
-    // -----------------------------
-    // Validate required fields
-    // -----------------------------
+    // -------------------------
+    // Basic validation
+    // -------------------------
 
     if (
       !senderName?.trim() ||
@@ -53,10 +55,6 @@ export async function POST(request) {
     const email = senderEmail
       .trim()
       .toLowerCase();
-
-    // -----------------------------
-    // Gmail only
-    // -----------------------------
 
     if (
       !email.endsWith("@gmail.com") &&
@@ -79,20 +77,13 @@ export async function POST(request) {
       );
     }
 
-    // -----------------------------
-    // Clean headers
-    // -----------------------------
-
     const cleanSenderName =
       cleanHeader(senderName);
 
     const cleanSubject =
       cleanHeader(subject);
 
-    if (
-      !cleanSenderName ||
-      !cleanSubject
-    ) {
+    if (!cleanSenderName || !cleanSubject) {
       return Response.json(
         {
           error:
@@ -102,9 +93,9 @@ export async function POST(request) {
       );
     }
 
-    // -----------------------------
-    // Prepare recipients
-    // -----------------------------
+    // -------------------------
+    // Recipients
+    // -------------------------
 
     const recipientList = [
       ...new Set(
@@ -140,8 +131,7 @@ export async function POST(request) {
     const invalidRecipient =
       recipientList.find(
         (recipient) =>
-          !emailRegex.test(recipient) ||
-          /[\r\n]/.test(recipient)
+          !emailRegex.test(recipient)
       );
 
     if (invalidRecipient) {
@@ -154,9 +144,9 @@ export async function POST(request) {
       );
     }
 
-    // -----------------------------
+    // -------------------------
     // Gmail SMTP
-    // -----------------------------
+    // -------------------------
 
     transporter =
       nodemailer.createTransport({
@@ -171,12 +161,15 @@ export async function POST(request) {
 
         connectionTimeout: 15000,
         greetingTimeout: 15000,
-        socketTimeout: 20000
+        socketTimeout: 20000,
+
+        // Keep the SMTP connection conservative.
+        pool: false
       });
 
-    // -----------------------------
-    // Verify Gmail authentication
-    // -----------------------------
+    // -------------------------
+    // Verify Gmail login
+    // -------------------------
 
     try {
       await transporter.verify();
@@ -195,12 +188,15 @@ export async function POST(request) {
       );
     }
 
-    // -----------------------------
-    // Create HTML version
-    // -----------------------------
+    // -------------------------
+    // Prepare message
+    // -------------------------
+
+    const cleanMessage =
+      String(message).trim();
 
     const htmlMessage =
-      escapeHtml(message.trim())
+      escapeHtml(cleanMessage)
         .replace(/\r?\n/g, "<br>");
 
     let sent = 0;
@@ -208,37 +204,29 @@ export async function POST(request) {
 
     const errors = [];
 
-    // -----------------------------
-    // Send emails individually
-    // -----------------------------
+    // -------------------------
+    // Send individually
+    // -------------------------
 
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
-          from: {
-            name: cleanSenderName,
-            address: email
-          },
+          from: `"${cleanSenderName}" <${email}>`,
 
           to: recipient,
 
           subject: cleanSubject,
 
-          date: new Date(),
-
-          text: message.trim(),
+          text: cleanMessage,
 
           html: `
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8">
-</head>
-<body>
-  <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
-    ${htmlMessage}
-  </div>
-</body>
+  <body>
+    <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
+      ${htmlMessage}
+    </div>
+  </body>
 </html>
           `.trim()
         });
@@ -261,21 +249,19 @@ export async function POST(request) {
       }
     }
 
-    // -----------------------------
+    // -------------------------
     // Response
-    // -----------------------------
+    // -------------------------
 
     return Response.json({
       success: sent > 0,
       provider: "Gmail",
       sent,
       failed,
-
       message:
         sent > 0
           ? `Email sending completed. Sent: ${sent}, Failed: ${failed}.`
           : "No email was sent.",
-
       errors
     });
 
