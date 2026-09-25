@@ -8,12 +8,19 @@ function cleanHeader(value) {
     .trim();
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function POST(request) {
   let transporter;
 
   try {
-    const body = await request.json();
-
     const {
       senderName,
       senderEmail,
@@ -21,9 +28,12 @@ export async function POST(request) {
       recipients,
       subject,
       message
-    } = body;
+    } = await request.json();
 
-    // Required fields
+    // -----------------------------
+    // Validate required fields
+    // -----------------------------
+
     if (
       !senderName?.trim() ||
       !senderEmail?.trim() ||
@@ -40,9 +50,14 @@ export async function POST(request) {
       );
     }
 
-    const email = senderEmail.trim().toLowerCase();
+    const email = senderEmail
+      .trim()
+      .toLowerCase();
 
+    // -----------------------------
     // Gmail only
+    // -----------------------------
+
     if (
       !email.endsWith("@gmail.com") &&
       !email.endsWith("@googlemail.com")
@@ -64,25 +79,40 @@ export async function POST(request) {
       );
     }
 
+    // -----------------------------
     // Clean headers
-    const cleanSenderName = cleanHeader(senderName);
-    const cleanSubject = cleanHeader(subject);
+    // -----------------------------
 
-    if (!cleanSenderName || !cleanSubject) {
+    const cleanSenderName =
+      cleanHeader(senderName);
+
+    const cleanSubject =
+      cleanHeader(subject);
+
+    if (
+      !cleanSenderName ||
+      !cleanSubject
+    ) {
       return Response.json(
         {
-          error: "Invalid sender name or subject."
+          error:
+            "Invalid sender name or subject."
         },
         { status: 400 }
       );
     }
 
-    // Recipient list
+    // -----------------------------
+    // Prepare recipients
+    // -----------------------------
+
     const recipientList = [
       ...new Set(
         recipients
           .split(/\r?\n/)
-          .map((email) => email.trim().toLowerCase())
+          .map((item) =>
+            item.trim().toLowerCase()
+          )
           .filter(Boolean)
       )
     ];
@@ -90,7 +120,8 @@ export async function POST(request) {
     if (recipientList.length === 0) {
       return Response.json(
         {
-          error: "Enter at least one recipient."
+          error:
+            "Enter at least one recipient."
         },
         { status: 400 }
       );
@@ -99,48 +130,61 @@ export async function POST(request) {
     if (recipientList.length > 50) {
       return Response.json(
         {
-          error: "Maximum 50 recipients per request."
+          error:
+            "Maximum 50 recipients per request."
         },
         { status: 400 }
       );
     }
 
-    const invalidRecipient = recipientList.find(
-      (recipient) =>
-        !emailRegex.test(recipient) ||
-        /[\r\n]/.test(recipient)
-    );
+    const invalidRecipient =
+      recipientList.find(
+        (recipient) =>
+          !emailRegex.test(recipient) ||
+          /[\r\n]/.test(recipient)
+      );
 
     if (invalidRecipient) {
       return Response.json(
         {
-          error: `Invalid recipient email: ${invalidRecipient}`
+          error:
+            `Invalid recipient email: ${invalidRecipient}`
         },
         { status: 400 }
       );
     }
 
+    // -----------------------------
     // Gmail SMTP
-    transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+    // -----------------------------
 
-      auth: {
-        user: email,
-        pass: appPassword.trim()
-      },
+    transporter =
+      nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
 
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 20000
-    });
+        auth: {
+          user: email,
+          pass: appPassword.trim()
+        },
 
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000
+      });
+
+    // -----------------------------
     // Verify Gmail authentication
+    // -----------------------------
+
     try {
       await transporter.verify();
     } catch (error) {
-      console.error("GMAIL AUTH ERROR:", error);
+      console.error(
+        "GMAIL AUTH ERROR:",
+        error
+      );
 
       return Response.json(
         {
@@ -151,11 +195,23 @@ export async function POST(request) {
       );
     }
 
+    // -----------------------------
+    // Create HTML version
+    // -----------------------------
+
+    const htmlMessage =
+      escapeHtml(message.trim())
+        .replace(/\r?\n/g, "<br>");
+
     let sent = 0;
     let failed = 0;
+
     const errors = [];
 
-    // Send individually
+    // -----------------------------
+    // Send emails individually
+    // -----------------------------
+
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
@@ -168,11 +224,23 @@ export async function POST(request) {
 
           subject: cleanSubject,
 
+          date: new Date(),
+
           text: message.trim(),
 
-          headers: {
-            "X-Mailer": "Mail Sender"
-          }
+          html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
+    ${htmlMessage}
+  </div>
+</body>
+</html>
+          `.trim()
         });
 
         sent++;
@@ -193,6 +261,10 @@ export async function POST(request) {
       }
     }
 
+    // -----------------------------
+    // Response
+    // -----------------------------
+
     return Response.json({
       success: sent > 0,
       provider: "Gmail",
@@ -206,8 +278,12 @@ export async function POST(request) {
 
       errors
     });
+
   } catch (error) {
-    console.error("MAIL API ERROR:", error);
+    console.error(
+      "MAIL API ERROR:",
+      error
+    );
 
     return Response.json(
       {
@@ -216,6 +292,7 @@ export async function POST(request) {
       },
       { status: 500 }
     );
+
   } finally {
     if (transporter) {
       transporter.close();
