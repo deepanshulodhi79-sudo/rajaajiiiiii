@@ -42,7 +42,7 @@ function detectSMTP(email) {
   return null;
 }
 
-// Fixed escapeHtml function with valid regex syntax
+// ✅ FIXED: Correct escapeHtml function with valid Regex
 function escapeHtml(text) {
   return text
     .replace(/&/g, "&")
@@ -51,7 +51,6 @@ function escapeHtml(text) {
     .replace(/'/g, "'");
 }
 
-// Delay helper to prevent aggressive spam filter flags
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function POST(request) {
@@ -94,9 +93,6 @@ export async function POST(request) {
       );
     }
 
-    /*
-     * Convert recipient textarea into a deduplicated list
-     */
     const recipientList = [
       ...new Set(
         recipients
@@ -149,9 +145,6 @@ export async function POST(request) {
       cleanReplyTo = replyTo.trim();
     }
 
-    /*
-     * Transporter configured with Connection Pooling
-     */
     const transporter = nodemailer.createTransport({
       pool: true,
       maxConnections: 1,
@@ -172,9 +165,6 @@ export async function POST(request) {
       socketTimeout: 20000
     });
 
-    /*
-     * Verify SMTP Credentials
-     */
     try {
       await transporter.verify();
     } catch (error) {
