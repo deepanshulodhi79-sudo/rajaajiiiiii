@@ -42,11 +42,10 @@ function detectSMTP(email) {
   return null;
 }
 
-// ✅ FIXED: Correct escapeHtml with valid Regex
 function escapeHtml(text) {
   return text
-    .replace(/"/g, """)
-    .replace(/'/g, "'")
+    .replace(/&/g, "&")
+    .replace(//g, ">")
     .replace(/"/g, """)
     .replace(/'/g, "'");
 }
