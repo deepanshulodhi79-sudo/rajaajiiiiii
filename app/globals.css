@@ -1,3 +1,4 @@
+```css
 * {
   box-sizing: border-box;
 }
@@ -198,16 +199,28 @@ textarea {
   line-height: 1.4;
 }
 
+/* Success message */
+
 .status.success {
   background: #ecfdf3;
   color: #087443;
   border: 1px solid #b7ebce;
 }
 
+/* Error message */
+
 .status.error {
   background: #fff1f2;
   color: #b42318;
   border: 1px solid #fecdd3;
+}
+
+/* Warning message */
+
+.status.warning {
+  background: #fff8e6;
+  color: #8a5a00;
+  border: 1px solid #f1d58a;
 }
 
 .footerNote {
@@ -250,3 +263,4 @@ textarea {
     width: 100%;
   }
 }
+```
