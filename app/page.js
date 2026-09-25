@@ -50,17 +50,24 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Something went wrong.");
+        throw new Error(
+          data.error || "Something went wrong."
+        );
       }
 
       setStatus({
-        type: data.failed > 0 ? "warning" : "success",
+        type: data.failed > 0
+          ? "warning"
+          : "success",
+
         message: data.message
       });
     } catch (error) {
       setStatus({
         type: "error",
-        message: error.message
+        message:
+          error.message ||
+          "Unable to send email."
       });
     } finally {
       setLoading(false);
@@ -88,13 +95,17 @@ export default function Home() {
       <div className="container">
 
         <header className="header">
-          <h1>Mail Sender</h1>
+          <h1>Gmail Mail Sender</h1>
+
           <p>
-            Send emails through your authenticated SMTP account.
+            Send emails using your authenticated Gmail account.
           </p>
         </header>
 
-        <form className="card" onSubmit={handleSubmit}>
+        <form
+          className="card"
+          onSubmit={handleSubmit}
+        >
 
           <div className="grid">
 
@@ -116,14 +127,14 @@ export default function Home() {
 
             <div className="field">
               <label htmlFor="senderEmail">
-                Sender Email
+                Gmail Address
               </label>
 
               <input
                 id="senderEmail"
                 name="senderEmail"
                 type="email"
-                placeholder="your@yahoo.com"
+                placeholder="yourname@gmail.com"
                 value={form.senderEmail}
                 onChange={handleChange}
                 required
@@ -134,14 +145,14 @@ export default function Home() {
 
           <div className="field">
             <label htmlFor="appPassword">
-              App Password
+              Gmail App Password
             </label>
 
             <input
               id="appPassword"
               name="appPassword"
               type="password"
-              placeholder="Enter App Password"
+              placeholder="Enter 16-character App Password"
               value={form.appPassword}
               onChange={handleChange}
               autoComplete="off"
@@ -149,13 +160,14 @@ export default function Home() {
             />
 
             <small>
-              Use your email provider's App Password.
+              Use a Gmail App Password. Do not use your normal Gmail password.
             </small>
           </div>
 
           <div className="field">
             <label htmlFor="recipients">
               Recipients
+
               <span className="labelHint">
                 One email per line
               </span>
@@ -165,9 +177,9 @@ export default function Home() {
               id="recipients"
               name="recipients"
               rows="7"
-              placeholder={`client1@example.com
-client2@example.com
-client3@example.com`}
+              placeholder={`client1@gmail.com
+client2@gmail.com
+client3@gmail.com`}
               value={form.recipients}
               onChange={handleChange}
               required
@@ -211,7 +223,9 @@ client3@example.com`}
           </div>
 
           {status.message && (
-            <div className={`status ${status.type}`}>
+            <div
+              className={`status ${status.type}`}
+            >
               {status.message}
             </div>
           )}
@@ -232,7 +246,9 @@ client3@example.com`}
               className="primaryButton"
               disabled={loading}
             >
-              {loading ? "Sending..." : "Send Email"}
+              {loading
+                ? "Sending..."
+                : "Send Email"}
             </button>
 
           </div>
@@ -240,7 +256,7 @@ client3@example.com`}
         </form>
 
         <div className="footerNote">
-          <span>SMTP Mail Sender</span>
+          <span>Gmail SMTP</span>
           <span>•</span>
           <span>Vercel Ready</span>
         </div>
