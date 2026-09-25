@@ -1,5 +1,56 @@
 import nodemailer from "nodemailer";
 
+function detectSMTP(email) {
+  const domain = email.toLowerCase().split("@")[1];
+
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    return {
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      provider: "Gmail"
+    };
+  }
+
+  if (
+    domain === "yahoo.com" ||
+    domain === "yahoo.co.in" ||
+    domain === "yahoo.co.uk"
+  ) {
+    return {
+      host: "smtp.mail.yahoo.com",
+      port: 465,
+      secure: true,
+      provider: "Yahoo"
+    };
+  }
+
+  if (
+    domain === "outlook.com" ||
+    domain === "hotmail.com" ||
+    domain === "live.com"
+  ) {
+    return {
+      host: "smtp-mail.outlook.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      provider: "Outlook/Microsoft"
+    };
+  }
+
+  return null;
+}
+
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -10,7 +61,8 @@ export async function POST(request) {
       appPassword,
       recipients,
       subject,
-      message
+      message,
+      replyTo
     } = body;
 
     if (
@@ -23,7 +75,21 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error: "All fields are required."
+          error: "Please fill all required fields."
+        },
+        {
+          status: 400
+        }
+      );
+    }
+
+    const smtp = detectSMTP(senderEmail);
+
+    if (!smtp) {
+      return Response.json(
+        {
+          error:
+            "This email provider is not configured. Currently supported: Gmail, Yahoo and Outlook."
         },
         {
           status: 400
@@ -32,25 +98,18 @@ export async function POST(request) {
     }
 
     /*
-      Convert recipient textarea into an array.
+     * Convert recipient textarea into an array.
+     * One email address per line.
+     */
 
-      Example:
-
-      abc@gmail.com
-      xyz@gmail.com
-
-      becomes:
-
-      [
-        "abc@gmail.com",
-        "xyz@gmail.com"
-      ]
-    */
-
-    const recipientList = recipients
-      .split(/\r?\n/)
-      .map((email) => email.trim())
-      .filter(Boolean);
+    const recipientList = [
+      ...new Set(
+        recipients
+          .split(/\r?\n/)
+          .map((email) => email.trim().toLowerCase())
+          .filter(Boolean)
+      )
+    ];
 
     if (recipientList.length === 0) {
       return Response.json(
@@ -64,8 +123,25 @@ export async function POST(request) {
     }
 
     /*
-      Basic email validation
-    */
+     * Limit one request.
+     */
+
+    const MAX_RECIPIENTS = 50;
+
+    if (recipientList.length > MAX_RECIPIENTS) {
+      return Response.json(
+        {
+          error: `Maximum ${MAX_RECIPIENTS} recipients are allowed per request.`
+        },
+        {
+          status: 400
+        }
+      );
+    }
+
+    /*
+     * Basic email validation.
+     */
 
     const emailRegex =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -86,37 +162,35 @@ export async function POST(request) {
     }
 
     /*
-      Limit a single request.
+     * Optional Reply-To validation.
+     */
 
-      This prevents accidentally submitting a huge recipient list.
-    */
+    let cleanReplyTo = senderEmail;
 
-    const MAX_RECIPIENTS = 50;
+    if (replyTo && replyTo.trim()) {
+      if (!emailRegex.test(replyTo.trim())) {
+        return Response.json(
+          {
+            error: "Invalid Reply-To email address."
+          },
+          {
+            status: 400
+          }
+        );
+      }
 
-    if (recipientList.length > MAX_RECIPIENTS) {
-      return Response.json(
-        {
-          error: `Maximum ${MAX_RECIPIENTS} recipients are allowed per request.`
-        },
-        {
-          status: 400
-        }
-      );
+      cleanReplyTo = replyTo.trim();
     }
 
     /*
-      Gmail SMTP
-
-      smtp.gmail.com + port 465 + secure true
-      works with Gmail App Passwords.
-
-      For other providers, change the SMTP configuration.
-    */
+     * Create SMTP transporter.
+     */
 
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.secure,
+      requireTLS: smtp.requireTLS || false,
 
       auth: {
         user: senderEmail,
@@ -129,88 +203,147 @@ export async function POST(request) {
     });
 
     /*
-      Verify SMTP credentials before sending.
-    */
+     * Verify SMTP login.
+     */
 
-    await transporter.verify();
+    try {
+      await transporter.verify();
+    } catch (error) {
+      transporter.close();
+
+      console.error("SMTP VERIFY ERROR:", error);
+
+      let errorMessage =
+        "SMTP authentication failed.";
+
+      if (
+        error.code === "EAUTH" ||
+        error.responseCode === 535
+      ) {
+        errorMessage =
+          `Authentication failed for ${smtp.provider}. Check the email address and App Password.`;
+      }
+
+      return Response.json(
+        {
+          error: errorMessage
+        },
+        {
+          status: 401
+        }
+      );
+    }
 
     /*
-      Send each recipient separately.
+     * Convert plain text into safe HTML.
+     */
 
-      This means recipients do not see each other's email addresses.
-    */
+    const safeMessage = escapeHtml(message).replace(
+      /\r?\n/g,
+      "<br>"
+    );
+
+    const htmlMessage = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+</head>
+
+<body style="
+  margin:0;
+  padding:0;
+  background:#ffffff;
+  color:#202124;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:15px;
+  line-height:1.6;
+">
+
+  <div>
+    ${safeMessage}
+  </div>
+
+</body>
+</html>
+`;
 
     let sent = 0;
     let failed = 0;
 
     const errors = [];
 
+    /*
+     * Send each email separately.
+     */
+
     for (const recipient of recipientList) {
       try {
         await transporter.sendMail({
           from: `"${senderName}" <${senderEmail}>`,
+
           to: recipient,
-          subject: subject,
-          text: message
+
+          replyTo: cleanReplyTo,
+
+          subject: subject.trim(),
+
+          text: message,
+
+          html: htmlMessage,
+
+          /*
+           * RFC-compatible headers.
+           */
+
+          "X-Mailer": "Mail Sender",
+          "X-Auto-Response-Suppress": "All"
         });
 
         sent++;
       } catch (error) {
         failed++;
 
+        console.error(
+          `SEND ERROR ${recipient}:`,
+          error
+        );
+
         errors.push({
           recipient,
-          error: error.message
+          error:
+            error.response ||
+            error.message ||
+            "Unknown SMTP error"
         });
       }
     }
 
-    /*
-      Close SMTP connection.
-    */
-
     transporter.close();
 
-    if (sent === 0) {
-      return Response.json(
-        {
-          error: "No emails were sent.",
-          details: errors
-        },
-        {
-          status: 500
-        }
-      );
-    }
-
     return Response.json({
-      success: true,
-      message: `Email sending completed. Sent: ${sent}, Failed: ${failed}.`,
+      success: sent > 0,
+
+      message:
+        sent > 0
+          ? `Sending completed. Sent: ${sent}, Failed: ${failed}.`
+          : "No emails were sent.",
+
+      provider: smtp.provider,
+
       sent,
+
       failed,
+
       errors
     });
   } catch (error) {
-    console.error("MAIL ERROR:", error);
-
-    let message = "Unable to send email.";
-
-    if (
-      error.code === "EAUTH" ||
-      error.responseCode === 535
-    ) {
-      message =
-        "SMTP authentication failed. Check your email and app password.";
-    }
-
-    if (error.code === "ETIMEDOUT") {
-      message =
-        "SMTP connection timed out. Please try again.";
-    }
+    console.error("MAIL API ERROR:", error);
 
     return Response.json(
       {
-        error: message
+        error:
+          "Server error while processing the email request."
       },
       {
         status: 500
