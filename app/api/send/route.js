@@ -42,16 +42,22 @@ function detectSMTP(email) {
   return null;
 }
 
+// Aapka exact escapeHtml function (Build Safe)
 function escapeHtml(text) {
   if (!text) return "";
+  const amp = Buffer.from("JmFtcDs=", "base64").toString();
+  const lt = Buffer.from("Jmx0Ow==", "base64").toString();
+  const gt = Buffer.from("Jmd0Ow==", "base64").toString();
+  const quot = Buffer.from("JnF1b3Q7", "base64").toString();
+  const apos = Buffer.from("JiMwMzk7", "base64").toString();
+
   return String(text)
-    .replace(/&/g, "&")
-    .replace(//g, ">")
-    .replace(/"/g, """)
-    .replace(/'/g, "'");
+    .replace(/&/g, amp)
+    .replace(//g, gt)
+    .replace(/"/g, quot)
+    .replace(/'/g, apos);
 }
 
-// Rate limiting throttle helper
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function POST(request) {
@@ -146,7 +152,6 @@ export async function POST(request) {
       cleanReplyTo = replyTo.trim();
     }
 
-    // Transport with Pooling enabled for high deliverability
     const transporter = nodemailer.createTransport({
       pool: true,
       maxConnections: 1,
@@ -162,9 +167,9 @@ export async function POST(request) {
       tls: {
         rejectUnauthorized: true
       },
-      connectionTimeout: 600,
-      greetingTimeout: 600,
-      socketTimeout: 1000
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000
     });
 
     try {
