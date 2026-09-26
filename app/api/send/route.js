@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailRegex =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function cleanHeader(value) {
   return String(value || "")
@@ -42,7 +43,8 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error: "Please fill all required fields.",
+          error:
+            "Please fill all required fields.",
         },
         { status: 400 }
       );
@@ -62,7 +64,8 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error: "Please use a Gmail address.",
+          error:
+            "Please use a Gmail address.",
         },
         { status: 400 }
       );
@@ -71,7 +74,8 @@ export async function POST(request) {
     if (!emailRegex.test(email)) {
       return Response.json(
         {
-          error: "Invalid Gmail address.",
+          error:
+            "Invalid Gmail address.",
         },
         { status: 400 }
       );
@@ -80,7 +84,8 @@ export async function POST(request) {
     if (!emailRegex.test(cleanRecipient)) {
       return Response.json(
         {
-          error: `Invalid recipient email: ${cleanRecipient}`,
+          error:
+            `Invalid recipient email: ${cleanRecipient}`,
         },
         { status: 400 }
       );
@@ -98,7 +103,8 @@ export async function POST(request) {
     if (!cleanSenderName) {
       return Response.json(
         {
-          error: "Invalid sender name.",
+          error:
+            "Invalid sender name.",
         },
         { status: 400 }
       );
@@ -107,7 +113,8 @@ export async function POST(request) {
     if (!cleanSubject) {
       return Response.json(
         {
-          error: "Subject is required.",
+          error:
+            "Subject is required.",
         },
         { status: 400 }
       );
@@ -116,7 +123,8 @@ export async function POST(request) {
     if (cleanSubject.length > 200) {
       return Response.json(
         {
-          error: "Subject is too long.",
+          error:
+            "Subject is too long.",
         },
         { status: 400 }
       );
@@ -125,32 +133,31 @@ export async function POST(request) {
     if (!cleanMessage) {
       return Response.json(
         {
-          error: "Message is required.",
+          error:
+            "Message is required.",
         },
         { status: 400 }
       );
     }
 
-    transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+    transporter =
+      nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
 
-      auth: {
-        user: email,
-        pass: appPassword.trim(),
-      },
+        auth: {
+          user: email,
+          pass: appPassword.trim(),
+        },
 
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 20000,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000,
 
-      pool: false,
-    });
+        pool: false,
+      });
 
-    /*
-      Verify Gmail SMTP authentication before sending.
-    */
     try {
       await transporter.verify();
     } catch (error) {
@@ -168,18 +175,24 @@ export async function POST(request) {
       );
     }
 
-    const htmlMessage = escapeHtml(
-      cleanMessage
-    ).replace(/\r?\n/g, "<br>");
+    const htmlMessage =
+      escapeHtml(cleanMessage)
+        .replace(
+          /\r?\n/g,
+          "<br>"
+        );
 
-    const info = await transporter.sendMail({
-      from: `"${cleanSenderName}" <${email}>`,
-      to: cleanRecipient,
-      subject: cleanSubject,
+    const info =
+      await transporter.sendMail({
+        from: `"${cleanSenderName}" <${email}>`,
 
-      text: cleanMessage,
+        to: cleanRecipient,
 
-      html: `
+        subject: cleanSubject,
+
+        text: cleanMessage,
+
+        html: `
 <!doctype html>
 <html>
   <body>
@@ -188,8 +201,8 @@ export async function POST(request) {
     </div>
   </body>
 </html>
-      `.trim(),
-    });
+        `.trim(),
+      });
 
     return Response.json({
       success: true,
