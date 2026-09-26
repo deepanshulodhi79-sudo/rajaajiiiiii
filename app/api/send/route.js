@@ -27,26 +27,22 @@ export async function POST(request) {
       senderName,
       senderEmail,
       appPassword,
-      recipients,
+      recipient,
       subject,
-      message
+      message,
     } = body;
-
-    // -------------------------
-    // Basic validation
-    // -------------------------
 
     if (
       !senderName?.trim() ||
       !senderEmail?.trim() ||
       !appPassword?.trim() ||
-      !recipients?.trim() ||
+      !recipient?.trim() ||
       !subject?.trim() ||
       !message?.trim()
     ) {
       return Response.json(
         {
-          error: "Please fill all required fields."
+          error: "Please fill all required fields.",
         },
         { status: 400 }
       );
@@ -56,13 +52,17 @@ export async function POST(request) {
       .trim()
       .toLowerCase();
 
+    const cleanRecipient = recipient
+      .trim()
+      .toLowerCase();
+
     if (
       !email.endsWith("@gmail.com") &&
       !email.endsWith("@googlemail.com")
     ) {
       return Response.json(
         {
-          error: "Please use a Gmail address."
+          error: "Please use a Gmail address.",
         },
         { status: 400 }
       );
@@ -71,7 +71,16 @@ export async function POST(request) {
     if (!emailRegex.test(email)) {
       return Response.json(
         {
-          error: "Invalid Gmail address."
+          error: "Invalid Gmail address.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!emailRegex.test(cleanRecipient)) {
+      return Response.json(
+        {
+          error: `Invalid recipient email: ${cleanRecipient}`,
         },
         { status: 400 }
       );
@@ -83,94 +92,65 @@ export async function POST(request) {
     const cleanSubject =
       cleanHeader(subject);
 
-    if (!cleanSenderName || !cleanSubject) {
+    const cleanMessage =
+      String(message).trim();
+
+    if (!cleanSenderName) {
       return Response.json(
         {
-          error:
-            "Invalid sender name or subject."
+          error: "Invalid sender name.",
         },
         { status: 400 }
       );
     }
 
-    // -------------------------
-    // Recipients
-    // -------------------------
-
-    const recipientList = [
-      ...new Set(
-        recipients
-          .split(/\r?\n/)
-          .map((item) =>
-            item.trim().toLowerCase()
-          )
-          .filter(Boolean)
-      )
-    ];
-
-    if (recipientList.length === 0) {
+    if (!cleanSubject) {
       return Response.json(
         {
-          error:
-            "Enter at least one recipient."
+          error: "Subject is required.",
         },
         { status: 400 }
       );
     }
 
-    if (recipientList.length > 50) {
+    if (cleanSubject.length > 200) {
       return Response.json(
         {
-          error:
-            "Maximum 50 recipients per request."
+          error: "Subject is too long.",
         },
         { status: 400 }
       );
     }
 
-    const invalidRecipient =
-      recipientList.find(
-        (recipient) =>
-          !emailRegex.test(recipient)
-      );
-
-    if (invalidRecipient) {
+    if (!cleanMessage) {
       return Response.json(
         {
-          error:
-            `Invalid recipient email: ${invalidRecipient}`
+          error: "Message is required.",
         },
         { status: 400 }
       );
     }
 
-    // -------------------------
-    // Gmail SMTP
-    // -------------------------
+    transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
 
-    transporter =
-      nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
+      auth: {
+        user: email,
+        pass: appPassword.trim(),
+      },
 
-        auth: {
-          user: email,
-          pass: appPassword.trim()
-        },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
 
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 20000,
+      pool: false,
+    });
 
-        // Keep the SMTP connection conservative.
-        pool: false
-      });
-
-    // -------------------------
-    // Verify Gmail login
-    // -------------------------
-
+    /*
+      Verify Gmail SMTP authentication before sending.
+    */
     try {
       await transporter.verify();
     } catch (error) {
@@ -182,89 +162,41 @@ export async function POST(request) {
       return Response.json(
         {
           error:
-            "Gmail authentication failed. Check your Gmail address and App Password."
+            "Gmail authentication failed. Check your Gmail address and App Password.",
         },
         { status: 401 }
       );
     }
 
-    // -------------------------
-    // Prepare message
-    // -------------------------
+    const htmlMessage = escapeHtml(
+      cleanMessage
+    ).replace(/\r?\n/g, "<br>");
 
-    const cleanMessage =
-      String(message).trim();
+    const info = await transporter.sendMail({
+      from: `"${cleanSenderName}" <${email}>`,
+      to: cleanRecipient,
+      subject: cleanSubject,
 
-    const htmlMessage =
-      escapeHtml(cleanMessage)
-        .replace(/\r?\n/g, "<br>");
+      text: cleanMessage,
 
-    let sent = 0;
-    let failed = 0;
-
-    const errors = [];
-
-    // -------------------------
-    // Send individually
-    // -------------------------
-
-    for (const recipient of recipientList) {
-      try {
-        await transporter.sendMail({
-          from: `"${cleanSenderName}" <${email}>`,
-
-          to: recipient,
-
-          subject: cleanSubject,
-
-          text: cleanMessage,
-
-          html: `
+      html: `
 <!doctype html>
 <html>
   <body>
-    <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
+    <div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.6;">
       ${htmlMessage}
     </div>
   </body>
 </html>
-          `.trim()
-        });
-
-        sent++;
-      } catch (error) {
-        failed++;
-
-        console.error(
-          `SEND ERROR ${recipient}:`,
-          error
-        );
-
-        errors.push({
-          recipient,
-          error:
-            error?.message ||
-            "Email sending failed."
-        });
-      }
-    }
-
-    // -------------------------
-    // Response
-    // -------------------------
-
-    return Response.json({
-      success: sent > 0,
-      provider: "Gmail",
-      sent,
-      failed,
-      message:
-        sent > 0
-          ? `Email sending completed. Sent: ${sent}, Failed: ${failed}.`
-          : "No email was sent.",
-      errors
+      `.trim(),
     });
 
+    return Response.json({
+      success: true,
+      recipient: cleanRecipient,
+      messageId: info.messageId,
+      response: info.response,
+    });
   } catch (error) {
     console.error(
       "MAIL API ERROR:",
@@ -274,11 +206,11 @@ export async function POST(request) {
     return Response.json(
       {
         error:
-          "Server error while sending email."
+          error?.message ||
+          "Server error while sending email.",
       },
       { status: 500 }
     );
-
   } finally {
     if (transporter) {
       transporter.close();
