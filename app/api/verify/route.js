@@ -34,28 +34,30 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error: "Please use a Gmail address.",
+          error:
+            "Please use a Gmail address.",
         },
         { status: 400 }
       );
     }
 
-    transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+    transporter =
+      nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
 
-      auth: {
-        user: email,
-        pass: appPassword.trim(),
-      },
+        auth: {
+          user: email,
+          pass: appPassword.trim(),
+        },
 
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 20000,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000,
 
-      pool: false,
-    });
+        pool: false,
+      });
 
     await transporter.verify();
 
