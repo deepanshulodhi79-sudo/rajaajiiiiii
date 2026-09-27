@@ -1,11 +1,7 @@
 import nodemailer from "nodemailer";
 
 export async function POST(request) {
-  let transporter;
-
   try {
-    const body = await request.json();
-
     const {
       senderName,
       senderEmail,
@@ -13,7 +9,7 @@ export async function POST(request) {
       recipient,
       subject,
       message,
-    } = body;
+    } = await request.json();
 
     if (
       !senderName?.trim() ||
@@ -34,12 +30,12 @@ export async function POST(request) {
 
     if (!email.endsWith("@gmail.com")) {
       return Response.json(
-        { error: "Please use a Gmail address." },
+        { error: "Only Gmail addresses are supported." },
         { status: 400 }
       );
     }
 
-    transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
@@ -54,8 +50,9 @@ export async function POST(request) {
 
     await transporter.verify();
 
-    const htmlMessage = message
-      .trim()
+    const cleanMessage = message.trim();
+
+    const htmlMessage = cleanMessage
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -63,15 +60,17 @@ export async function POST(request) {
 
     const info = await transporter.sendMail({
       from: `"${senderName.trim()}" <${email}>`,
-      to,
+      to: to,
       subject: subject.trim(),
-      text: message.trim(),
+      text: cleanMessage,
       html: `
-        <div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">
+        <div style="font-family: Arial, sans-serif; font-size: 15px; line-height: 1.6;">
           ${htmlMessage}
         </div>
       `,
     });
+
+    transporter.close();
 
     return Response.json({
       success: true,
@@ -79,18 +78,14 @@ export async function POST(request) {
       messageId: info.messageId,
     });
   } catch (error) {
-    console.error("MAIL ERROR:", error);
+    console.error("SEND EMAIL ERROR:", error);
 
     return Response.json(
       {
         success: false,
-        error: error?.message || "Failed to send email.",
+        error: error?.message || "Email could not be sent.",
       },
       { status: 500 }
     );
-  } finally {
-    if (transporter) {
-      transporter.close();
-    }
   }
 }
