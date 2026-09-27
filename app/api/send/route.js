@@ -1,29 +1,7 @@
 import nodemailer from "nodemailer";
 
-const emailRegex =
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function cleanHeader(value) {
-  return String(value || "")
-    .replace(/[\r\n]+/g, " ")
-    .trim();
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 export async function POST(request) {
-  let transporter;
-
   try {
-    const body = await request.json();
-
     const {
       senderName,
       senderEmail,
@@ -31,8 +9,9 @@ export async function POST(request) {
       recipient,
       subject,
       message,
-    } = body;
+    } = await request.json();
 
+    // Basic validation
     if (
       !senderName?.trim() ||
       !senderEmail?.trim() ||
@@ -42,129 +21,48 @@ export async function POST(request) {
       !message?.trim()
     ) {
       return Response.json(
-        {
-          error:
-            "Please fill all required fields.",
-        },
+        { error: "Please fill all required fields." },
         { status: 400 }
       );
     }
 
-    const email = senderEmail
-      .trim()
-      .toLowerCase();
+    const email = senderEmail.trim();
+    const to = recipient.trim();
+    const cleanSubject = subject.trim();
+    const cleanMessage = message.trim();
 
-    const cleanRecipient = recipient
-      .trim()
-      .toLowerCase();
-
+    // Gmail only
     if (
-      !email.endsWith("@gmail.com") &&
-      !email.endsWith("@googlemail.com")
+      !email.toLowerCase().endsWith("@gmail.com") &&
+      !email.toLowerCase().endsWith("@googlemail.com")
     ) {
       return Response.json(
-        {
-          error:
-            "Please use a Gmail address.",
-        },
+        { error: "Please use a Gmail address." },
         { status: 400 }
       );
     }
 
-    if (!emailRegex.test(email)) {
-      return Response.json(
-        {
-          error:
-            "Invalid Gmail address.",
-        },
-        { status: 400 }
-      );
-    }
+    // Gmail SMTP
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: email,
+        pass: appPassword.trim(),
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
+    });
 
-    if (!emailRegex.test(cleanRecipient)) {
-      return Response.json(
-        {
-          error:
-            `Invalid recipient email: ${cleanRecipient}`,
-        },
-        { status: 400 }
-      );
-    }
-
-    const cleanSenderName =
-      cleanHeader(senderName);
-
-    const cleanSubject =
-      cleanHeader(subject);
-
-    const cleanMessage =
-      String(message).trim();
-
-    if (!cleanSenderName) {
-      return Response.json(
-        {
-          error:
-            "Invalid sender name.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!cleanSubject) {
-      return Response.json(
-        {
-          error:
-            "Subject is required.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (cleanSubject.length > 200) {
-      return Response.json(
-        {
-          error:
-            "Subject is too long.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!cleanMessage) {
-      return Response.json(
-        {
-          error:
-            "Message is required.",
-        },
-        { status: 400 }
-      );
-    }
-
-    transporter =
-      nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-
-        auth: {
-          user: email,
-          pass: appPassword.trim(),
-        },
-
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 20000,
-
-        pool: false,
-      });
-
+    // Check Gmail login
     try {
       await transporter.verify();
     } catch (error) {
-      console.error(
-        "GMAIL AUTH ERROR:",
-        error
-      );
+      console.error("GMAIL VERIFY ERROR:", error);
+
+      transporter.close();
 
       return Response.json(
         {
@@ -175,58 +73,50 @@ export async function POST(request) {
       );
     }
 
-    const htmlMessage =
-      escapeHtml(cleanMessage)
-        .replace(
-          /\r?\n/g,
-          "<br>"
-        );
+    // Convert message to simple HTML
+    const htmlMessage = cleanMessage
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\r?\n/g, "<br>");
 
-    const info =
-      await transporter.sendMail({
-        from: `"${cleanSenderName}" <${email}>`,
+    // Send email
+    const info = await transporter.sendMail({
+      from: `"${senderName.trim()}" <${email}>`,
+      to,
+      subject: cleanSubject,
 
-        to: cleanRecipient,
+      // Plain-text version
+      text: cleanMessage,
 
-        subject: cleanSubject,
+      // HTML version
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: Arial, sans-serif; font-size: 15px; line-height: 1.6;">
+            ${htmlMessage}
+          </body>
+        </html>
+      `,
+    });
 
-        text: cleanMessage,
-
-        html: `
-<!doctype html>
-<html>
-  <body>
-    <div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.6;">
-      ${htmlMessage}
-    </div>
-  </body>
-</html>
-        `.trim(),
-      });
+    transporter.close();
 
     return Response.json({
       success: true,
-      recipient: cleanRecipient,
+      recipient: to,
       messageId: info.messageId,
       response: info.response,
     });
   } catch (error) {
-    console.error(
-      "MAIL API ERROR:",
-      error
-    );
+    console.error("MAIL SEND ERROR:", error);
 
     return Response.json(
       {
-        error:
-          error?.message ||
-          "Server error while sending email.",
+        success: false,
+        error: error?.message || "Failed to send email.",
       },
       { status: 500 }
     );
-  } finally {
-    if (transporter) {
-      transporter.close();
-    }
   }
 }
