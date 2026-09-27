@@ -1,7 +1,11 @@
 import nodemailer from "nodemailer";
 
 export async function POST(request) {
+  let transporter;
+
   try {
+    const body = await request.json();
+
     const {
       senderName,
       senderEmail,
@@ -9,9 +13,8 @@ export async function POST(request) {
       recipient,
       subject,
       message,
-    } = await request.json();
+    } = body;
 
-    // Basic validation
     if (
       !senderName?.trim() ||
       !senderEmail?.trim() ||
@@ -26,24 +29,17 @@ export async function POST(request) {
       );
     }
 
-    const email = senderEmail.trim();
-    const to = recipient.trim();
-    const cleanSubject = subject.trim();
-    const cleanMessage = message.trim();
+    const email = senderEmail.trim().toLowerCase();
+    const to = recipient.trim().toLowerCase();
 
-    // Gmail only
-    if (
-      !email.toLowerCase().endsWith("@gmail.com") &&
-      !email.toLowerCase().endsWith("@googlemail.com")
-    ) {
+    if (!email.endsWith("@gmail.com")) {
       return Response.json(
         { error: "Please use a Gmail address." },
         { status: 400 }
       );
     }
 
-    // Gmail SMTP
-    const transporter = nodemailer.createTransport({
+    transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
@@ -56,60 +52,34 @@ export async function POST(request) {
       socketTimeout: 20000,
     });
 
-    // Check Gmail login
-    try {
-      await transporter.verify();
-    } catch (error) {
-      console.error("GMAIL VERIFY ERROR:", error);
+    await transporter.verify();
 
-      transporter.close();
-
-      return Response.json(
-        {
-          error:
-            "Gmail authentication failed. Check your Gmail address and App Password.",
-        },
-        { status: 401 }
-      );
-    }
-
-    // Convert message to simple HTML
-    const htmlMessage = cleanMessage
+    const htmlMessage = message
+      .trim()
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/\r?\n/g, "<br>");
 
-    // Send email
     const info = await transporter.sendMail({
       from: `"${senderName.trim()}" <${email}>`,
       to,
-      subject: cleanSubject,
-
-      // Plain-text version
-      text: cleanMessage,
-
-      // HTML version
+      subject: subject.trim(),
+      text: message.trim(),
       html: `
-        <!DOCTYPE html>
-        <html>
-          <body style="font-family: Arial, sans-serif; font-size: 15px; line-height: 1.6;">
-            ${htmlMessage}
-          </body>
-        </html>
+        <div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">
+          ${htmlMessage}
+        </div>
       `,
     });
-
-    transporter.close();
 
     return Response.json({
       success: true,
       recipient: to,
       messageId: info.messageId,
-      response: info.response,
     });
   } catch (error) {
-    console.error("MAIL SEND ERROR:", error);
+    console.error("MAIL ERROR:", error);
 
     return Response.json(
       {
@@ -118,5 +88,9 @@ export async function POST(request) {
       },
       { status: 500 }
     );
+  } finally {
+    if (transporter) {
+      transporter.close();
+    }
   }
 }
