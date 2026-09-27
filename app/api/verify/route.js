@@ -1,14 +1,12 @@
 import nodemailer from "nodemailer";
 
 export async function POST(request) {
-  let transporter;
-
   try {
     const { senderEmail, appPassword } = await request.json();
 
     if (!senderEmail?.trim() || !appPassword?.trim()) {
       return Response.json(
-        { error: "Gmail and App Password are required." },
+        { error: "Gmail address and App Password are required." },
         { status: 400 }
       );
     }
@@ -17,12 +15,12 @@ export async function POST(request) {
 
     if (!email.endsWith("@gmail.com")) {
       return Response.json(
-        { error: "Please use a Gmail address." },
+        { error: "Only Gmail addresses are supported." },
         { status: 400 }
       );
     }
 
-    transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
@@ -37,9 +35,11 @@ export async function POST(request) {
 
     await transporter.verify();
 
+    transporter.close();
+
     return Response.json({
       success: true,
-      message: "Gmail connection successful.",
+      message: "Gmail SMTP verified successfully.",
     });
   } catch (error) {
     console.error("VERIFY ERROR:", error);
@@ -52,9 +52,5 @@ export async function POST(request) {
       },
       { status: 401 }
     );
-  } finally {
-    if (transporter) {
-      transporter.close();
-    }
   }
 }
